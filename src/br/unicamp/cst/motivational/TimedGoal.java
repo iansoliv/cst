@@ -38,6 +38,7 @@ public abstract class TimedGoal extends Goal {
             me.printStackTrace();
         }
 
+
     }
 
     public double calculateCompletedTime(){
