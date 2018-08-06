@@ -17,7 +17,7 @@ import java.util.HashMap;
  *
  * @author suelenmapa
  */
-public class QualityDimension {
+public class QualityDimension implements Entity {
 
     private String name;
     private Object value;
@@ -92,6 +92,12 @@ public class QualityDimension {
 
     protected QualityDimension clone() {
         return new QualityDimension(getName(), getValue());
+    }
+    
+    public String toString(int level) {
+        String out="";
+        out += name+" : "+value+"\n";
+        return out;
     }
 
 }

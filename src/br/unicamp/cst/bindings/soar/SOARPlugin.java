@@ -109,51 +109,107 @@ public class SOARPlugin {
         }
 
     }
-
-    public void step() {
-
-        Date initDate = new Date();
-
-        processInputLink();
-
-        if (getDebugState() == 0)
-            setPhase(stepSOAR(1, RunType.PHASES));
-        else
-            setPhase(stepSOAR(1, RunType.PHASES));
-
-
-        getWMEStringInput();
-
+    
+    /**************************************************/
+    
+    /**
+     * Perform a complete SOAR step
+     * 
+     */
+    public void step() 
+    {
+        if (phase != -1) finish_msteps();
+        dofullcycle();
         processOutputLink();
-
-        getWMEStringOutput();
-
+    }
+    
+    public void prepare_mstep() {
+        resetSimulation();
+        processInputLink(); // Transform AO into WMEs
+    }
+    
+    //int kk=0;
+    int oldphase = -1;
+    public void mstep()
+    {
+        if (phase == -1) prepare_mstep();
+        getWMEStringInput(); // Copy InputLink into the a String readable version
+        phase = stepSOAR(1,RunType.PHASES);
+        getWMEStringOutput(); // Copy OutputLink into the a String readable version
         if (getPhase() == 3 && getDebugState() == 1) {
+            getOperatorsPathList().addAll(getOperatorsInCurrentPhase(getStates()));
+        }
+        if (phase == 5 || phase == oldphase) { // oldphase included to avoid infinite recursion
+            post_mstep();
+            phase = -1;
+        }
+        oldphase = phase;
+        //System.out.println(kk++ + " Micro-step: "+phase);
+    }
+    
+    public void finish_msteps() {
+        while (phase != -1) mstep();
+    }
+    
+    public void dofullcycle() {
+        do mstep(); while (phase != -1); 
+    }
+    
+    public void post_mstep()  {
+        processOutputLink();
+        try {
+                Thread.sleep(1); // why this is needed ? 
+        } catch (InterruptedException e) {
+                e.printStackTrace();
+        }
+        setOperatorsPathList(new ArrayList<>());
+    }
+    
+    
+    
+    /*************************************************/
 
+    public void step_old() {
+        Date initDate=null;
+        
+        if (getDebugState() == 1) {
+            initDate = new Date();
+            if (getPhase() == 0) processInputLink();           
+            setPhase(stepSOAR(1, RunType.PHASES));
+        }    
+        else {
+            //System.out.println("Starting SOAR step");
+            resetSimulation();
+            processInputLink();
+            getWMEStringInput();
+            //System.out.println("Before:\n"+getWMEString(getInitialState()));
+            runSOAR();
+            //System.out.println("After:\n"+getWMEString(getInitialState()));
+            processOutputLink();
+            getWMEStringOutput();
+            //System.out.println("Finishing SOAR step");
+        }
+            
+        if (getPhase() == 3 && getDebugState() == 1) {
             getOperatorsPathList().addAll(getOperatorsInCurrentPhase(getStates()));
         }
 
         if (getPhase() == 5) {
-
             try {
                 Thread.sleep(1);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-
             setPhase(-1);
-
             resetSimulation();
-
             setOperatorsPathList(new ArrayList<>());
-
         }
 
-        double diff = (new Date()).getTime() - initDate.getTime();
-
-        if(getDebugState() == 1)
-        	logger.info("Time of Soar Cycle :" + diff);
-
+        if(getDebugState() == 1) {
+            double diff = (new Date()).getTime() - initDate.getTime();
+            logger.info("Time of Soar Cycle :" + diff);
+        }
+        	
     }
 
     public void moveToFinalStep() {
@@ -225,24 +281,31 @@ public class SOARPlugin {
     }
 
     public void printWMEs(List<Wme> Commands) {
-        for (Wme wme : Commands) {
-            System.out.print("(" + wme.getIdentifier().toString() + "," + wme.getAttribute().toString() + "," + wme.getValue().toString() + ")\n");
-            Iterator<Wme> children = wme.getChildren();
-            while (children.hasNext()) {
-                Wme child = children.next();
-                System.out.print("(" + child.getIdentifier().toString() + "," + child.getAttribute().toString() + "," + child.getValue().toString() + ")\n");
-            }
-        }
+        String s = getWMEsAsString(Commands);
+        System.out.println(s);
+//        for (Wme wme : Commands) {
+//            System.out.print("(" + wme.getIdentifier().toString() + "," + wme.getAttribute().toString() + "," + wme.getValue().toString() + ")\n");
+//            Iterator<Wme> children = wme.getChildren();
+//            while (children.hasNext()) {
+//                Wme child = children.next();
+//                System.out.print("(" + child.getIdentifier().toString() + "," + child.getAttribute().toString() + "," + child.getValue().toString() + ")\n");
+//            }
+//        }
     }
 
     public String getWMEsAsString(List<Wme> Commands) {
         String result = "";
+        String preference = "";
         for (Wme wme : Commands) {
-            result += "(" + wme.getIdentifier().toString() + "," + wme.getAttribute().toString() + "," + wme.getValue().toString() + ")\n";
+            preference = "";
+            if (wme.isAcceptable()) preference = " +";
+            result += "(" + wme.getIdentifier().toString() + "," + wme.getAttribute().toString() + "," + wme.getValue().toString() + preference + ")\n";
             Iterator<Wme> children = wme.getChildren();
             while (children.hasNext()) {
                 Wme child = children.next();
-                result += "(" + child.getIdentifier().toString() + "," + child.getAttribute().toString() + "," + child.getValue().toString() + ")\n";
+                preference = "";
+                if (child.isAcceptable()) preference = " +";
+                result += "(" + child.getIdentifier().toString() + "," + child.getAttribute().toString() + "," + child.getValue().toString() + preference + ")\n";
             }
         }
         return (result);
@@ -379,7 +442,7 @@ public class SOARPlugin {
     //CreateWME methods
     public Identifier createIdWME(Identifier id, String s) {
         SymbolFactoryImpl sf = (SymbolFactoryImpl) getAgent().getSymbols();
-        Identifier newID = sf.createIdentifier('I');
+        Identifier newID = sf.createIdentifier('W');
         getAgent().getInputOutput().addInputWme(id, sf.createString(s), newID);
         return (newID);
     }
@@ -425,6 +488,7 @@ public class SOARPlugin {
             Set<Wme> allmem = Collections.synchronizedSet(getAgent().getAllWmesInRete());
 
             for (Wme w : allmem) {
+                
                 Identifier id = w.getIdentifier();
                 if (id.isGoal()) {
                     boolean alreadythere = false;
@@ -684,25 +748,27 @@ public class SOARPlugin {
     -------------------------------------------------------------------------*/
 
     public void printWME(Identifier id) {
-        printWME(id, 0);
+        String ids = getWMEString(id);
+        System.out.println(ids);
+        //printWME(id, 0);
 
     }
 
-    public void printWME(Identifier id, int level) {
-        Iterator<Wme> It = id.getWmes();
-        while (It.hasNext()) {
-            Wme wme = It.next();
-            Identifier idd = wme.getIdentifier();
-            Symbol a = wme.getAttribute();
-            Symbol v = wme.getValue();
-            Identifier testv = v.asIdentifier();
-            for (int i = 0; i < level; i++) System.out.print("   ");
-            if (testv != null) {
-                System.out.print("(" + idd.toString() + "," + a.toString() + "," + v.toString() + ")\n");
-                printWME(testv, level + 1);
-            } else System.out.print("(" + idd.toString() + "," + a.toString() + "," + v.toString() + ")\n");
-        }
-    }
+//    public void printWME(Identifier id, int level) {
+//        Iterator<Wme> It = id.getWmes();
+//        while (It.hasNext()) {
+//            Wme wme = It.next();
+//            Identifier idd = wme.getIdentifier();
+//            Symbol a = wme.getAttribute();
+//            Symbol v = wme.getValue();
+//            Identifier testv = v.asIdentifier();
+//            for (int i = 0; i < level; i++) System.out.print("   ");
+//            if (testv != null) {
+//                System.out.print("(" + idd.toString() + "," + a.toString() + "," + v.toString() + ")\n");
+//                printWME(testv, level + 1);
+//            } else System.out.print("(" + idd.toString() + "," + a.toString() + "," + v.toString() + ")\n");
+//        }
+//    }
 
     public void printInputWMEs() {
         Identifier il = getAgent().getInputOutput().getInputLink();
@@ -763,6 +829,16 @@ public class SOARPlugin {
         return (out);
     }
     
+    public Identifier getInitialState() {
+        List<Identifier> ids = getStates();
+        Identifier s1 = null;
+        for (Identifier id : ids) {
+            if (id.getNameLetter() == 'S' && id.getNameNumber() == 1)
+                s1 = id;
+        }
+        return(s1);
+    }
+    
     /* -----------------------------------------------------------------------
     Beginning of WorldObject Support methods
     -------------------------------------------------------------------------*/
@@ -770,6 +846,10 @@ public class SOARPlugin {
     public AbstractObject getWorldObject(Identifier id, String name) {
         AbstractObject newwo = null;
         Iterator<Wme> It = id.getWmes();
+        if (!It.hasNext()) {
+            // This situation happens when the OutputLink is empty
+            newwo = new AbstractObject(name);
+        }
         while (It.hasNext()) {
 
             if (newwo == null) {
@@ -800,33 +880,27 @@ public class SOARPlugin {
 
     public void processOutputLink() {
         Identifier ol = getAgent().getInputOutput().getOutputLink();
+        if (ol == null) logger.severe("Error in cst.SOARPlugin: Unable to get access to OutputLink");
 
-        setOutputLinkAO((getWorldObject(ol, "OutputLink")));
+        AbstractObject olao = getWorldObject(ol, "OutputLink");
+        setOutputLinkAO(olao);
     }
 
     public void processInputLink() {
-
         setInputLinkIdentifier(getAgent().getInputOutput().getInputLink());
-
         ((IdentifierImpl) getInputLinkIdentifier()).removeAllInputWmes();
-
         SymbolFactoryImpl sf = (SymbolFactoryImpl) getAgent().getSymbols();
-
         sf.reset();
-
         processInputLink(getInputLinkAO(), getInputLinkIdentifier());
-
     }
 
     public void processInputLink(AbstractObject il, Identifier id) {
-
         if (il != null) {
             List<AbstractObject> parts = il.getCompositeParts();
             for (AbstractObject w : parts) {
                 Identifier id2 = createIdWME(id, w.getName());
                 processInputLink(w, id2);
             }
-
             List<Property> properties = il.getProperties();
             for (Property p : properties) {
                 Identifier id3 = createIdWME(id, p.getName());
@@ -1026,6 +1100,14 @@ public class SOARPlugin {
         }
         if (parent == null) return (javaObject);
         else return (parent);
+    }
+    
+    public void loadRules(String path) {
+        try {
+           SoarCommands.source(getAgent().getInterpreter(), path);
+           resetSOAR();
+           
+        } catch (Exception e) {e.printStackTrace();}
     }
 
     public int getPhase() {
