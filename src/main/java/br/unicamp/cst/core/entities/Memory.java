@@ -12,11 +12,13 @@
 package br.unicamp.cst.core.entities;
 
 /**
- * This class represents the interface for all kinds of memories that exist in
- * CST. In order to be recognized as a Memory, an entity must implement this
- * interface. Currently, there are to kinds of Memory: MemoryObject and
- * MemoryContainer. However, other forms of Memory might come up as CST
- * develops.
+ * This is the interface for all kinds of memories of CST. 
+ * 
+ * Any CST Memory implements this.
+ * 
+ * Currently, there are to kinds of Memory: MemoryObject and MemoryContainer. 
+ * 
+ * However, other forms of Memory might come up as CST develops.
  * 
  * @author A. L. O. Paraense
  * @see MemoryObject

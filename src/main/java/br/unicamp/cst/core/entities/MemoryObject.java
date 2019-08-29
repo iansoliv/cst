@@ -93,6 +93,7 @@ public class MemoryObject implements Memory, Serializable {
 	 * 
 	 * @return the info of the Memory Object.
 	 */
+	@Override
 	public synchronized Object getI() {
 		return this.I;
 	}
@@ -103,6 +104,7 @@ public class MemoryObject implements Memory, Serializable {
 	 * @param info
 	 *            the info in memory object to set.
 	 */
+	@Override
 	public synchronized int setI(Object info) {
 		this.I = info;
 		setTimestamp(System.currentTimeMillis());
@@ -147,6 +149,7 @@ public class MemoryObject implements Memory, Serializable {
 	 * 
 	 * @return the type
 	 */
+	@Override
 	public synchronized String getName() {
 		return name;
 	}
@@ -166,6 +169,7 @@ public class MemoryObject implements Memory, Serializable {
 	 * 
 	 * @return the evaluation of the Memory Object.
 	 */
+	@Override
 	public synchronized Double getEvaluation() {
 		return evaluation;
 	}
@@ -176,6 +180,7 @@ public class MemoryObject implements Memory, Serializable {
 	 * @param evaluation
 	 *            the evaluation to set.
 	 */
+	@Override
 	public synchronized void setEvaluation(Double evaluation) {
 		this.evaluation = evaluation;
 	}
