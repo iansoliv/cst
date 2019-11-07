@@ -193,6 +193,7 @@ public abstract class Codelet implements Runnable {
 	public synchronized void stop()
 	{
 		this.setLoop( false );
+		this.timer.cancel();
 	}
 
 	/**
@@ -641,12 +642,8 @@ public abstract class Codelet implements Runnable {
 		if (inputs != null && inputs.size() > 0)
 		{
 			for (Memory mo : inputs)
-			{
 				if (mo.getName() != null && mo.getName().equalsIgnoreCase( name ))
-				{
 					return mo;
-				}
-			}
 		}
 
 		return null;
@@ -700,19 +697,11 @@ public abstract class Codelet implements Runnable {
 	 */
 	public synchronized Memory getOutput( String name )
 	{
-		Memory selectedMO = null;
-		
 		if (outputs != null && outputs.size() > 0)
 		{
-			Optional<Memory> foundMO;
-			
-			foundMO = outputs.stream()
-						.filter( (mo) -> ( mo.getName() != null &&
-									mo.getName().equalsIgnoreCase( name )))
-						.findFirst();
-			
-			if (foundMO.isPresent())
-				selectedMO = foundMO.get();
+			for (Memory mo : outputs)
+				if (mo.getName() != null && mo.getName().equalsIgnoreCase( name ))
+					return mo;
 		}
 
 		return null;
